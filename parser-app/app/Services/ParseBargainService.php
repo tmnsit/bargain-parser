@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Dto\BargainDto;
 use App\Models\Bargain;
 use DiDom\Document;
 
@@ -15,9 +16,10 @@ class ParseBargainService
 
     public function handle()
     {
-        $page = $this->parsePage(1);
+        $bargains = $this->parsePage(1);
 
-        dd($page);
+
+        dd($bargains);
         return [];
     }
 
@@ -34,7 +36,7 @@ class ParseBargainService
             }
 
             $htmlDetail = $this->fetchBargainService->fetchHtmlDetailForId($bargain['id']);
-            $bargainsPageArr[] = $this->parseDetail($htmlDetail, $bargain['id']);
+            $bargainsPageArr[] = $this->parseDetail($htmlDetail, $bargain['id'], $bargain['number']);
         }
 
         return $bargainsPageArr;
@@ -52,6 +54,7 @@ class ParseBargainService
         $bargains = $table->find('tr[class]');
 
         $bargainsArr = [];
+
         foreach ($bargains as $bargain) {
             $bargainsArr[] = [
                 'id' => $this->getDetailId($bargain),
@@ -66,7 +69,7 @@ class ParseBargainService
         ];
     }
 
-    public function parseDetail($html, $id): array
+    public function parseDetail($html, $id, $number)
     {
         $document = new Document($html, false, 'windows-1251');
         $infoBlock = $document->find('#info')[0];
@@ -90,7 +93,11 @@ class ParseBargainService
         //search lots
         $dataItem['lots'] = $this->parseLots($id);
 
-        return $dataItem;
+        $dataItem['extId'] = $id;
+
+        $dataItem['number'] = $number;
+
+        return BargainDto::fromParseArray($dataItem);
     }
 
     public function parseLots($id)
