@@ -5,34 +5,42 @@ namespace App\Dto;
 
 class LotDto{
 
-    public string $name;
+    public string $name = '';
 
-    public string $infoProperty;
+    public string $hashName = '';
 
-    public string $familiarization;
+    public string $infoProperty = '';
 
-    public string $classification;
+    public string $familiarization = '';
 
-    public string $startPrice;
+    public string $classification = '';
 
-    public string $deposit;
+    public string $startPrice = '';
 
-    public string $increaseAmount;
+    public string $deposit = '';
 
-    public string $status;
+    public string $increaseAmount = '';
 
-    public array $files;
+    public string $status = '';
+
+    public array $files = [];
 
 
     public static function createFromParseArray($props) :self
     {
         $lot = new self();
         if(key_exists('Предмет торгов', $props)){
-            $lot->name = $props['Предмет торгов'];
+            $lot->name = trim($props['Предмет торгов']);
+            $lot->hashName = md5($props['Предмет торгов']);
+        }
+
+        if(key_exists('name', $props)){
+            $lot->name = trim($props['name']);
+            $lot->hashName = md5($props['name']);
         }
 
         if(key_exists('Cведения об имуществе (предприятии) должника, выставляемом на торги, его составе, характеристиках, описание', $props)){
-            $lot->familiarization = $props['Cведения об имуществе (предприятии) должника, выставляемом на торги, его составе, характеристиках, описание'];
+            $lot->familiarization = trim($props['Cведения об имуществе (предприятии) должника, выставляемом на торги, его составе, характеристиках, описание']);
         }
 
         if(key_exists('Порядок ознакомления с имуществом (предприятием) должника', $props)){
@@ -59,9 +67,7 @@ class LotDto{
             $lot->status = $props['Статус торгов'];
         }
 
-        if(key_exists('files', $props)){
-            $lot->files = $props['files'];
-        }
+        $lot->files = key_exists('files', $props) ?  $props['files'] : [];
 
         return $lot;
     }

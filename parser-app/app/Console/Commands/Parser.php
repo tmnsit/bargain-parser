@@ -2,7 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\ProcessParserBargain;
 use Illuminate\Console\Command;
+
+
 
 class Parser extends Command
 {
@@ -27,7 +30,7 @@ class Parser extends Command
      */
     public function handle()
     {
-        info(123);
+        ProcessParserBargain::dispatch(['numberPage' => 1]);
         return Command::SUCCESS;
     }
 }

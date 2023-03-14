@@ -11,7 +11,7 @@ class FetchBargainService
     public function fetchHtmlList(int $pageNum = 1): string
     {
         $url = config('services.auction.url') . config('services.auction.path_list');
-        $pageNum = 1;
+
         $response = Http::get($url, [
             'page' => $pageNum
         ]);

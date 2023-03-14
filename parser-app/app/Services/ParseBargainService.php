@@ -3,7 +3,13 @@
 namespace App\Services;
 
 use App\Dto\BargainDto;
+use App\Dto\LotDto;
+use App\Jobs\ProcessParserBargain;
 use App\Models\Bargain;
+use App\Models\Debtor;
+use App\Models\Lot;
+use App\Models\Manager;
+use App\Models\Organizer;
 use DiDom\Document;
 
 class ParseBargainService
@@ -14,22 +20,76 @@ class ParseBargainService
     {
     }
 
-    public function handle()
+    public function handle($numberPage = 1)
     {
-        $bargains = $this->parsePage(1);
+        $page = $this->parsePage($numberPage);
+
+        /** @var BargainDto $bargain */
+        foreach ($page['bargains'] as $bargain) {
+
+            if ($bargainDb = Bargain::query()->where('number', $bargain->number)->first()) {
+                // updateLots
+                foreach ($bargain->lots as $lot) {
+                    /** @var Lot $lotStatus */
+                    $lotStatus = $bargainDb->lots()->where('hashName', $lot->hashName)->select('status')->first();
+
+                    if ($lotStatus->status != $lot->status) {
+                        $lotStatus->status = $lot->status;
+                        $lotStatus->save();
+                    }
+                }
+            } else {
+                // create
+                $newBargain = new Bargain;
+
+                $newBargain->fill([
+                    'extId' => $bargain->extId,
+                    'number' => $bargain->number,
+                    'files' => $bargain->files,
+                ]);
 
 
-        dd($bargains);
-        return [];
+                $newBargain->organizer()->associate(
+                    Organizer::query()
+                        ->where('name', $bargain->organizer->name )
+                        ->firstOrCreate( (array) $bargain->organizer )
+                );
+
+                $newBargain->manager()->associate(
+                    Manager::query()
+                        ->where('name', $bargain->manager->name )
+                        ->firstOrCreate( (array) $bargain->manager)
+                );
+                $newBargain->debtor()->associate(
+                    Debtor::query()
+                        ->where('inn', $bargain->debtor->inn )
+                        ->firstOrCreate((array) $bargain->debtor )
+                );
+
+                $newBargain->save();
+
+
+                $newBargain->lots()->createMany(array_map(function (LotDto $lot) {
+                    return (array)$lot;
+                }, $bargain->lots));
+
+
+            }
+        }
+
+        if($page['countMaxNav'] >= $numberPage){
+            ProcessParserBargain::dispatch(['numberPage' => $numberPage + 1]);
+        }
+
     }
 
-    public function parsePage(int $pageNum) : array
+    public function parsePage(int $pageNum): array
     {
         $htmlList = $this->fetchBargainService->fetchHtmlList($pageNum);
 
         $bargains = $this->parseList($htmlList);
         $bargainsPageArr = [];
-        foreach ($bargains['bargains'] as $bargain){
+        foreach ($bargains['bargains'] as $bargain) {
             if (!$bargain['id'] || !$bargain['number']) {
                 info('id или номер торга не найден: ' . json_encode($bargain, JSON_UNESCAPED_UNICODE));
                 continue;
@@ -39,7 +99,10 @@ class ParseBargainService
             $bargainsPageArr[] = $this->parseDetail($htmlDetail, $bargain['id'], $bargain['number']);
         }
 
-        return $bargainsPageArr;
+        return [
+            'bargains' => $bargainsPageArr,
+            'countMaxNav' => $bargains['countMaxNav']
+        ];
     }
 
     public function parseList($html): array
@@ -104,25 +167,29 @@ class ParseBargainService
     {
         $html = $this->fetchBargainService->fetchLots($id);
         $document = new Document($html, false, 'windows-1251');
-        $tableLots = $document->find('table.data > tbody');
+        $tableLots = $document->find('table.data[id^=lotNumber]');
         $lots = [];
-        foreach ($tableLots as $table){
-            $rows = $table->find('tr');
+        foreach ($tableLots as $table) {
+            $rows = $table->find('tbody tr');
             $lot = [];
-            foreach ($rows as $row){
+            if (count($tableLots) > 1) {
+                $lot['name'] = trim(trim($table->first('thead th')->text()));
+            }
+
+            foreach ($rows as $row) {
                 $cels = $row->find('td');
-                if(count($cels) == 2){
-                    if($fileBox = $cels[1]->first('div')){
+                if (count($cels) == 2) {
+                    if ($fileBox = $cels[1]->first('div')) {
                         $lot['files'][] = [
                             'src' => config('services.auction.url') . $fileBox->first('a')->getAttribute('href'),
                             'name' => trim($fileBox->first('a')->text())
                         ];
-                    }else{
+                    } else {
                         $lot[trim($cels[0]->text())] = trim($cels[1]->text());
                     }
-                }elseif(count($cels)) {
+                } elseif (count($cels)) {
                     $periodTable = $cels[0]->first('table.data.inner');
-                    if($periodTable){
+                    if ($periodTable) {
                         $periodRows = $periodTable->find('tr');
                         foreach ($periodRows as $keyPeriod => $periodRow) {
                             if ($keyPeriod > 0) {
@@ -139,29 +206,27 @@ class ParseBargainService
 
                 }
             }
-
-            if(count($lot)){
+            if (count($lot)) {
                 $lots[] = $lot;
             }
         }
-
 
 
         return $lots;
 
     }
 
-    public function parseFiles($id) :array
+    public function parseFiles($id): array
     {
         $docFiles = new Document($this->fetchBargainService->fetchFiles($id), false, 'windows-1251');
         $files = [];
-        foreach ($docFiles->first('table')->find('tr') as $key => $rowFile){
-            if($key > 0){
+        foreach ($docFiles->first('table')->find('tr') as $key => $rowFile) {
+            if ($key > 0) {
                 $path_file = $rowFile->first('td > div > a');
-                if($path_file){
+                if ($path_file) {
                     $fileNameArray = explode('.', $path_file->getAttribute('href'));
                     $files[] = [
-                        'src' =>  config('services.auction.url') . $path_file->getAttribute('href'),
+                        'src' => config('services.auction.url') . $path_file->getAttribute('href'),
                         'name' => $rowFile->first('td')->text() . '.' . $fileNameArray[count($fileNameArray) - 1]
                     ];
                 }

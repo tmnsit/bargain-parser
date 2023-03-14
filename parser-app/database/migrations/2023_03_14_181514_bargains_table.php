@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Debtor;
+use App\Models\Manager;
+use App\Models\Organizer;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,12 +16,11 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('bargains', function (Blueprint $table) {
-            $table->id();
-            $table->bigInteger('extId')->unique();
-            $table->string('number')->unique();
-            $table->json('files');
-            $table->timestamps();
+        Schema::table('bargains', function (Blueprint $table) {
+
+            $table->foreignIdFor(Organizer::class)->constrained();
+            $table->foreignIdFor(Debtor::class)->constrained();
+            $table->foreignIdFor(Manager::class)->constrained();
         });
     }
 
@@ -29,6 +31,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('bargains');
+        //
     }
 };

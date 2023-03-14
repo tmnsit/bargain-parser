@@ -12,9 +12,9 @@ class OrganizerDto{
     {
         $organizer = new self();
 
-        $organizer->name = key_exists('Наименование', $props) ? $props['Наименование'] : '';
-        $organizer->email = key_exists('Адрес электронной почты', $props) ? $props['Адрес электронной почты'] : '';
-        $organizer->phone = key_exists('Номер контактного телефона', $props) ? $props['Номер контактного телефона'] : '';
+        $organizer->name = key_exists('Наименование', $props) ? trim($props['Наименование']) : '';
+        $organizer->email = key_exists('Адрес электронной почты', $props) ? trim($props['Адрес электронной почты']) : '';
+        $organizer->phone = key_exists('Номер контактного телефона', $props) ? trim($props['Номер контактного телефона']) : '';
 
         return $organizer;
     }

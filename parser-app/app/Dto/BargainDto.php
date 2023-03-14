@@ -16,7 +16,7 @@ class BargainDto{
 
     public array $files;
 
-    public array $lots = [];
+    public array $lots;
 
 
     public static function fromParseArray($props)
