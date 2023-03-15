@@ -1,4 +1,4 @@
-version: "3.9"
+version: "3"
 services:
     postgres:
         image: postgres:15.2-alpine
@@ -8,3 +8,4 @@ services:
             POSTGRES_PASSWORD: "docker"
         ports:
             - "5432:5432"
+
